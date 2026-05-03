@@ -1,1 +1,1396 @@
+--  SECTION 1: DDL – CREATE DATABASE & TABLES
+-- ============================================================
 
+CREATE DATABASE IF NOT EXISTS HospitalManagement;
+USE HospitalManagement;
+
+-- 1. Department
+CREATE TABLE Department (
+    dept_id        INT AUTO_INCREMENT PRIMARY KEY,
+    dept_name      VARCHAR(100) NOT NULL UNIQUE,
+    location       VARCHAR(100),
+    head_doctor_id INT
+);
+
+-- 2. Doctor
+CREATE TABLE Doctor (
+    doctor_id      INT AUTO_INCREMENT PRIMARY KEY,
+    name           VARCHAR(100) NOT NULL,
+    specialization VARCHAR(100),
+    dept_id        INT NOT NULL,
+    phone          VARCHAR(15) UNIQUE,
+    salary         DECIMAL(10,2) CHECK (salary > 0),
+    FOREIGN KEY (dept_id) REFERENCES Department(dept_id) ON DELETE RESTRICT
+);
+
+ALTER TABLE Department
+    ADD CONSTRAINT fk_head_doctor
+    FOREIGN KEY (head_doctor_id) REFERENCES Doctor(doctor_id) ON DELETE SET NULL;
+
+-- 3. Patient
+CREATE TABLE Patient (
+    patient_id  INT AUTO_INCREMENT PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL,
+    dob         DATE,
+    gender      ENUM('Male','Female','Other') NOT NULL,
+    phone       VARCHAR(15) UNIQUE,
+    address     TEXT,
+    blood_group VARCHAR(5),
+    reg_date    DATE DEFAULT (CURDATE())
+);
+
+-- 4. Appointment
+CREATE TABLE Appointment (
+    appt_id    INT AUTO_INCREMENT PRIMARY KEY,
+    patient_id INT NOT NULL,
+    doctor_id  INT NOT NULL,
+    appt_date  DATETIME NOT NULL,
+    status     ENUM('Scheduled','Completed','Cancelled') DEFAULT 'Scheduled',
+    notes      TEXT,
+    FOREIGN KEY (patient_id) REFERENCES Patient(patient_id) ON DELETE CASCADE,
+    FOREIGN KEY (doctor_id)  REFERENCES Doctor(doctor_id)  ON DELETE RESTRICT
+);
+
+-- 5. Ward
+CREATE TABLE Ward (
+    ward_id    INT AUTO_INCREMENT PRIMARY KEY,
+    ward_name  VARCHAR(100) NOT NULL,
+    ward_type  ENUM('General','ICU','Private','Semi-Private') NOT NULL,
+    total_beds INT NOT NULL CHECK (total_beds > 0),
+    occupied   INT DEFAULT 0 CHECK (occupied >= 0)
+);
+
+-- 6. Admission
+CREATE TABLE Admission (
+    admission_id   INT AUTO_INCREMENT PRIMARY KEY,
+    patient_id     INT NOT NULL,
+    ward_id        INT NOT NULL,
+    bed_no         INT NOT NULL,
+    admit_date     DATE NOT NULL DEFAULT (CURDATE()),
+    discharge_date DATE,
+    reason         TEXT,
+    FOREIGN KEY (patient_id) REFERENCES Patient(patient_id) ON DELETE CASCADE,
+    FOREIGN KEY (ward_id)    REFERENCES Ward(ward_id)       ON DELETE RESTRICT
+);
+
+-- 7. Supplier
+CREATE TABLE Supplier (
+    supplier_id   INT AUTO_INCREMENT PRIMARY KEY,
+    supplier_name VARCHAR(100) NOT NULL,
+    contact       VARCHAR(15),
+    address       TEXT
+);
+
+-- 8. Medicine
+CREATE TABLE Medicine (
+    medicine_id INT AUTO_INCREMENT PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL,
+    category    VARCHAR(50),
+    price       DECIMAL(8,2) NOT NULL CHECK (price >= 0),
+    stock_qty   INT NOT NULL DEFAULT 0 CHECK (stock_qty >= 0),
+    supplier_id INT,
+    FOREIGN KEY (supplier_id) REFERENCES Supplier(supplier_id) ON DELETE SET NULL
+);
+
+-- 9. Prescription
+CREATE TABLE Prescription (
+    prescription_id INT AUTO_INCREMENT PRIMARY KEY,
+    patient_id      INT NOT NULL,
+    doctor_id       INT NOT NULL,
+    medicine_id     INT NOT NULL,
+    dosage          VARCHAR(100),
+    days            INT CHECK (days > 0),
+    issue_date      DATE DEFAULT (CURDATE()),
+    FOREIGN KEY (patient_id)  REFERENCES Patient(patient_id)   ON DELETE CASCADE,
+    FOREIGN KEY (doctor_id)   REFERENCES Doctor(doctor_id)     ON DELETE RESTRICT,
+    FOREIGN KEY (medicine_id) REFERENCES Medicine(medicine_id) ON DELETE RESTRICT
+);
+
+-- 10. Bill
+CREATE TABLE Bill (
+    bill_id        INT AUTO_INCREMENT PRIMARY KEY,
+    patient_id     INT NOT NULL,
+    bill_date      DATE DEFAULT (CURDATE()),
+    total_amount   DECIMAL(10,2) NOT NULL CHECK (total_amount >= 0),
+    paid_amount    DECIMAL(10,2) DEFAULT 0 CHECK (paid_amount >= 0),
+    payment_status ENUM('Paid','Unpaid','Partial') DEFAULT 'Unpaid',
+    FOREIGN KEY (patient_id) REFERENCES Patient(patient_id) ON DELETE CASCADE
+);
+
+-- 11. Lab_Test
+CREATE TABLE Lab_Test (
+    test_id    INT AUTO_INCREMENT PRIMARY KEY,
+    patient_id INT NOT NULL,
+    doctor_id  INT NOT NULL,
+    test_name  VARCHAR(100) NOT NULL,
+    result     TEXT,
+    test_date  DATE DEFAULT (CURDATE()),
+    test_fee   DECIMAL(8,2) DEFAULT 0,
+    FOREIGN KEY (patient_id) REFERENCES Patient(patient_id) ON DELETE CASCADE,
+    FOREIGN KEY (doctor_id)  REFERENCES Doctor(doctor_id)   ON DELETE RESTRICT
+);
+
+
+-- ============================================================
+--  SECTION 2: DML – INSERT DATA (100-150 rows per table)
+-- ============================================================
+
+INSERT INTO Department (dept_name, location) VALUES
+    ('Cardiology',       'Block A - Floor 2'),
+    ('Orthopedics',      'Block B - Floor 1'),
+    ('Neurology',        'Block A - Floor 3'),
+    ('Pediatrics',       'Block C - Floor 1'),
+    ('General Medicine', 'Block D - Floor 1'),
+    ('Dermatology',      'Block E - Floor 1'),
+    ('Gynecology',       'Block C - Floor 2'),
+    ('Urology',          'Block B - Floor 3'),
+    ('Oncology',         'Block F - Floor 1'),
+    ('Psychiatry',       'Block D - Floor 2');
+
+INSERT INTO Doctor (name, specialization, dept_id, phone, salary) VALUES
+    ('Dr. Rajesh Kumar', 'Cardiologist', 1, '987650001', 150000),
+    ('Dr. Priya Sharma', 'Orthopedic Surgeon', 2, '9876500002', 140000),
+    ('Dr. Anil Mehta', 'Neurologist', 3, '9876500003', 160000),
+    ('Dr. Sunita Verma', 'Pediatrician', 4, '9876500004', 120000),
+    ('Dr. Vikram Singh', 'General Physician', 5, '9876500005', 100000),
+    ('Dr. Kavya Nair', 'Dermatologist', 6, '9876500006', 130000),
+    ('Dr. Meera Pillai', 'Gynecologist', 7, '9876500007', 145000),
+    ('Dr. Suresh Reddy', 'Urologist', 8, '9876500008', 155000),
+    ('Dr. Ramesh Iyer', 'Oncologist', 9, '9876500009', 175000),
+    ('Dr. Anita Krishnan', 'Psychiatrist', 10, '9876500010', 125000),
+    ('Dr. Rahul Bose', 'Cardiologist', 1, '9876500011', 148000),
+    ('Dr. Sonal Dubey', 'Neurologist', 3, '9876500012', 158000),
+    ('Dr. Tarun Joshi', 'General Physician', 5, '9876500013', 98000),
+    ('Dr. Nisha Tiwari', 'Pediatrician', 4, '9876500014', 118000),
+    ('Dr. Pankaj Yadav', 'Orthopedic Surgeon', 2, '9876500015', 138000);
+
+UPDATE Department SET head_doctor_id = 1 WHERE dept_id = 1;
+UPDATE Department SET head_doctor_id = 2 WHERE dept_id = 2;
+UPDATE Department SET head_doctor_id = 3 WHERE dept_id = 3;
+UPDATE Department SET head_doctor_id = 4 WHERE dept_id = 4;
+UPDATE Department SET head_doctor_id = 5 WHERE dept_id = 5;
+UPDATE Department SET head_doctor_id = 6 WHERE dept_id = 6;
+UPDATE Department SET head_doctor_id = 7 WHERE dept_id = 7;
+UPDATE Department SET head_doctor_id = 8 WHERE dept_id = 8;
+UPDATE Department SET head_doctor_id = 9 WHERE dept_id = 9;
+UPDATE Department SET head_doctor_id = 10 WHERE dept_id = 10;
+
+INSERT INTO Patient (name, dob, gender, phone, address, blood_group) VALUES
+    ('Deepak Verma', '1979-09-04', 'Male', '9249827706', 'Hoshiarpur, Punjab', 'A-'),
+    ('Rohit Mehta', '1992-11-07', 'Male', '9200604502', 'Delhi', 'B-'),
+    ('Amit Verma', '2005-05-08', 'Male', '9797808098', 'Bathinda, Punjab', 'AB+'),
+    ('Aakash Bose', '1979-12-16', 'Female', '9106977991', 'Phagwara, Punjab', 'B+'),
+    ('Bharat Nair', '1979-12-06', 'Male', '9919795579', 'Karnal, Haryana', 'A-'),
+    ('Pooja Menon', '1963-09-05', 'Male', '9469319644', 'Panipat, Haryana', 'O+'),
+    ('Anjali Das', '2003-02-09', 'Male', '9506448196', 'Chandigarh', 'O+'),
+    ('Sunil Patel', '1972-04-01', 'Female', '9149203558', 'Sonipat, Haryana', 'B-'),
+    ('Smita Mehta', '1975-11-20', 'Female', '9508157429', 'Gurgaon', 'AB-'),
+    ('Sunil Malhotra', '1988-03-18', 'Male', '9819595113', 'Gurgaon', 'A-'),
+    ('Lata Kulkarni', '1976-12-17', 'Male', '9507437181', 'Gurgaon', 'B-'),
+    ('Anita Gupta', '1975-07-20', 'Female', '9964411347', 'Karnal, Haryana', 'AB+'),
+    ('Pankaj Kumar', '1973-12-05', 'Female', '9709004943', 'Bathinda, Punjab', 'O-'),
+    ('Shweta Bhatt', '1990-06-30', 'Female', '9790256940', 'Agra, UP', 'B+'),
+    ('Radha Rao', '1977-02-15', 'Female', '9678722458', 'Gurgaon', 'AB+'),
+    ('Kamla Reddy', '1974-09-04', 'Other', '9248532577', 'Kanpur, UP', 'AB-'),
+    ('Pooja Gupta', '1964-11-01', 'Male', '9271779360', 'Sonipat, Haryana', 'AB+'),
+    ('Suresh Menon', '1989-03-27', 'Female', '9602564736', 'Kanpur, UP', 'O+'),
+    ('Priya Joshi', '2003-03-05', 'Female', '9925276600', 'Faridabad, Haryana', 'O-'),
+    ('Deepak Tiwari', '1994-01-02', 'Male', '9103484630', 'Hoshiarpur, Punjab', 'O+'),
+    ('Amit Agarwal', '2000-07-18', 'Female', '9771410971', 'Ambala, Haryana', 'B-'),
+    ('Kavita Reddy', '1969-06-29', 'Female', '9936043811', 'Kanpur, UP', 'A+'),
+    ('Anita Bhatt', '1956-09-30', 'Male', '9489747629', 'Ambala, Haryana', 'B-'),
+    ('Divya Chauhan', '2005-11-25', 'Female', '9191969690', 'Hoshiarpur, Punjab', 'AB-'),
+    ('Suresh Kulkarni', '1966-04-13', 'Male', '9610330567', 'Varanasi, UP', 'B+'),
+    ('Radha Patil', '1992-12-17', 'Other', '9679064766', 'Phagwara, Punjab', 'B-'),
+    ('Jyoti Iyer', '1988-07-02', 'Male', '9655742829', 'Agra, UP', 'A-'),
+    ('Geetha Trivedi', '1960-09-29', 'Male', '9731691672', 'Varanasi, UP', 'B-'),
+    ('Aakash Sharma', '1961-05-15', 'Female', '9163215224', 'Noida', 'A-'),
+    ('Vikram Nair', '1961-05-10', 'Female', '9399012686', 'Sonipat, Haryana', 'AB-'),
+    ('Shweta Kulkarni', '1966-11-14', 'Female', '9713152854', 'Meerut, UP', 'AB-'),
+    ('Geetha Choudhary', '1991-07-09', 'Male', '9204078666', 'Sonipat, Haryana', 'AB+'),
+    ('Manju Murthy', '1991-11-18', 'Male', '9882839238', 'Ludhiana, Punjab', 'A-'),
+    ('Divya Iyer', '1985-06-10', 'Female', '9217326729', 'Noida', 'B-'),
+    ('Rajiv Kulkarni', '1995-04-01', 'Male', '9297018781', 'Gurgaon', 'AB-'),
+    ('Geetha Kumar', '1994-10-03', 'Female', '9690907304', 'Amritsar, Punjab', 'A+'),
+    ('Rohit Sharma', '1963-05-15', 'Female', '9353810544', 'Mohali, Punjab', 'AB+'),
+    ('Alok Choudhary', '1974-03-06', 'Female', '9162959284', 'Mohali, Punjab', 'AB+'),
+    ('Arjun Menon', '1978-10-17', 'Female', '9943026227', 'Agra, UP', 'O+'),
+    ('Bharat Jain', '1998-08-30', 'Male', '9418587604', 'Delhi', 'A+'),
+    ('Rohit Gupta', '1983-02-19', 'Male', '9727255918', 'Lucknow, UP', 'B+'),
+    ('Divya Desai', '1962-03-10', 'Female', '9173574218', 'Panipat, Haryana', 'A-'),
+    ('Sanjay Iyer', '1965-10-03', 'Female', '9711684318', 'Noida', 'A+'),
+    ('Karan Krishnan', '2005-09-16', 'Female', '9379995032', 'Delhi', 'O-'),
+    ('Sanjay Srivastava', '1990-07-05', 'Male', '9793101194', 'Ambala, Haryana', 'AB-'),
+    ('Ravi Kumar', '1955-11-02', 'Male', '9704509817', 'Amritsar, Punjab', 'A-'),
+    ('Sanjay Mishra', '2000-05-20', 'Male', '9474745382', 'Chandigarh', 'B-'),
+    ('Rashmi Tiwari', '1969-02-25', 'Male', '9683275843', 'Bathinda, Punjab', 'O+'),
+    ('Kavita Sharma', '2004-10-03', 'Male', '9812308209', 'Amritsar, Punjab', 'B+'),
+    ('Radha Joshi', '1964-08-08', 'Female', '9266910922', 'Gurgaon', 'O+'),
+    ('Mohit Nair', '1973-04-07', 'Female', '9383450553', 'Kanpur, UP', 'AB-'),
+    ('Vivek Gupta', '1963-04-13', 'Female', '9990505735', 'Gurgaon', 'A+'),
+    ('Arjun Nair', '1966-09-26', 'Female', '9381272327', 'Mohali, Punjab', 'AB-'),
+    ('Bharat Jain', '1955-11-13', 'Male', '9841976666', 'Jalandhar, Punjab', 'A+'),
+    ('Rashmi Shah', '2004-07-27', 'Male', '9236843584', 'Ludhiana, Punjab', 'O+'),
+    ('Sunil Singh', '1987-02-06', 'Male', '9367930513', 'Sonipat, Haryana', 'A-'),
+    ('Manju Jain', '1991-06-17', 'Other', '9904745462', 'Jalandhar, Punjab', 'B-'),
+    ('Harish Agarwal', '1991-12-28', 'Male', '9890880074', 'Karnal, Haryana', 'AB+'),
+    ('Geetha Saxena', '1969-04-13', 'Female', '9216066793', 'Shimla, HP', 'A+'),
+    ('Sachin Trivedi', '1972-11-26', 'Female', '9594246837', 'Rohtak, Haryana', 'O+'),
+    ('Pallavi Trivedi', '1957-02-14', 'Female', '9527849588', 'Karnal, Haryana', 'O+'),
+    ('Suresh Saxena', '1986-07-03', 'Female', '9529151399', 'Sonipat, Haryana', 'O-'),
+    ('Sneha Joshi', '1978-06-08', 'Male', '9385042337', 'Ludhiana, Punjab', 'A-'),
+    ('Renu Pillai', '1983-02-21', 'Male', '9649136331', 'Amritsar, Punjab', 'AB+'),
+    ('Rajiv Srivastava', '1958-12-25', 'Female', '9101815992', 'Kanpur, UP', 'B-'),
+    ('Sunil Murthy', '1961-04-11', 'Female', '9454549587', 'Panipat, Haryana', 'O-'),
+    ('Nisha Dubey', '2000-06-30', 'Male', '9538508549', 'Karnal, Haryana', 'AB+'),
+    ('Smita Jain', '1966-06-02', 'Male', '9813962536', 'Shimla, HP', 'B+'),
+    ('Hemant Iyer', '2004-02-27', 'Female', '9426283245', 'Ambala, Haryana', 'B-'),
+    ('Renu Shah', '1983-11-29', 'Male', '9574765466', 'Sonipat, Haryana', 'B-'),
+    ('Neha Choudhary', '1970-03-23', 'Female', '9404713332', 'Kanpur, UP', 'O-'),
+    ('Pooja Chauhan', '1982-11-06', 'Male', '9313814138', 'Jalandhar, Punjab', 'A+'),
+    ('Anjali Chauhan', '1997-08-17', 'Female', '9925159146', 'Chandigarh', 'AB-'),
+    ('Sapna Patel', '1972-06-11', 'Female', '9512293741', 'Lucknow, UP', 'AB+'),
+    ('Geetha Bhatia', '1955-07-01', 'Female', '9926830795', 'Amritsar, Punjab', 'AB+'),
+    ('Aakash Agarwal', '2001-06-20', 'Male', '9698509918', 'Noida', 'A-'),
+    ('Dhruv Rao', '1996-09-07', 'Female', '9700141462', 'Panipat, Haryana', 'O-'),
+    ('Nikhil Desai', '1993-04-14', 'Female', '9688273030', 'Agra, UP', 'B+'),
+    ('Sachin Bose', '1978-04-03', 'Female', '9784683755', 'Gurgaon', 'AB-'),
+    ('Sanjay Saxena', '1994-06-18', 'Male', '9406798268', 'Noida', 'O+'),
+    ('Arun Yadav', '2003-06-17', 'Male', '9261953189', 'Noida', 'AB+'),
+    ('Kavita Mishra', '1960-10-05', 'Male', '9455281184', 'Varanasi, UP', 'AB-'),
+    ('Sapna Gupta', '1973-07-22', 'Female', '9518197538', 'Phagwara, Punjab', 'A+'),
+    ('Girish Choudhary', '1955-07-13', 'Female', '9420632895', 'Phagwara, Punjab', 'AB+'),
+    ('Sapna Kulkarni', '2003-12-30', 'Female', '9336801619', 'Lucknow, UP', 'B-'),
+    ('Pankaj Murthy', '1998-07-27', 'Male', '9460916347', 'Sonipat, Haryana', 'AB+'),
+    ('Lata Das', '1966-06-14', 'Other', '9673510887', 'Patiala, Punjab', 'AB+'),
+    ('Sneha Mehta', '1993-06-14', 'Male', '9595744935', 'Mohali, Punjab', 'A+'),
+    ('Radha Menon', '1984-05-14', 'Male', '9450948014', 'Karnal, Haryana', 'AB+'),
+    ('Madhuri Krishnan', '1977-08-19', 'Female', '9604988121', 'Patiala, Punjab', 'A+'),
+    ('Vinod Trivedi', '1961-02-26', 'Female', '9799816232', 'Ludhiana, Punjab', 'A+'),
+    ('Geetha Pandey', '1956-10-29', 'Female', '9356135680', 'Jalandhar, Punjab', 'AB-'),
+    ('Deepak Patel', '1974-07-22', 'Male', '9375139575', 'Phagwara, Punjab', 'O-'),
+    ('Lata Joshi', '1969-09-10', 'Other', '9216070149', 'Meerut, UP', 'A+'),
+    ('Jyoti Patel', '1988-09-02', 'Male', '9867741192', 'Delhi', 'A-'),
+    ('Geetha Kapoor', '1982-01-21', 'Female', '9744687060', 'Amritsar, Punjab', 'A+'),
+    ('Vinod Kulkarni', '1993-06-07', 'Female', '9174041730', 'Kanpur, UP', 'O-'),
+    ('Priya Krishnan', '1998-12-23', 'Male', '9488896443', 'Faridabad, Haryana', 'AB-'),
+    ('Kavita Murthy', '1970-10-20', 'Female', '9798423334', 'Gurgaon', 'AB-'),
+    ('Hema Murthy', '1979-01-29', 'Male', '9363598427', 'Chandigarh', 'O+'),
+    ('Poonam Chauhan', '1996-09-09', 'Female', '9817461907', 'Shimla, HP', 'O-'),
+    ('Sneha Bhatt', '1984-02-28', 'Male', '9327761953', 'Rohtak, Haryana', 'O+'),
+    ('Saroj Saxena', '1979-10-14', 'Female', '9654724287', 'Delhi', 'A-'),
+    ('Sanjay Krishnan', '1998-10-31', 'Female', '9358045858', 'Bathinda, Punjab', 'AB-'),
+    ('Alok Bose', '1956-07-19', 'Male', '9337937327', 'Shimla, HP', 'B-'),
+    ('Jyoti Shah', '1988-02-09', 'Male', '9670073085', 'Rohtak, Haryana', 'AB+'),
+    ('Arun Pillai', '1995-09-16', 'Male', '9369942642', 'Noida', 'A-'),
+    ('Rajiv Yadav', '1965-09-22', 'Female', '9918394863', 'Bathinda, Punjab', 'B+'),
+    ('Rajiv Mishra', '1998-06-10', 'Male', '9733064117', 'Phagwara, Punjab', 'O+'),
+    ('Manish Pandey', '1981-07-30', 'Male', '9292673892', 'Ambala, Haryana', 'A+'),
+    ('Sanjay Rao', '1979-08-11', 'Male', '9158546865', 'Varanasi, UP', 'O+'),
+    ('Ajay Bhatt', '1964-03-15', 'Female', '9716396766', 'Ambala, Haryana', 'AB-'),
+    ('Preeti Bose', '1985-07-26', 'Male', '9155165334', 'Gurgaon', 'AB-'),
+    ('Deepak Kumar', '1990-12-13', 'Female', '9719571745', 'Faridabad, Haryana', 'A+'),
+    ('Kavita Bhatia', '2005-06-30', 'Female', '9191462297', 'Noida', 'A-'),
+    ('Sapna Trivedi', '2001-11-18', 'Male', '9575368059', 'Ambala, Haryana', 'AB+'),
+    ('Jyoti Patel', '1960-05-27', 'Female', '9894664845', 'Amritsar, Punjab', 'B-'),
+    ('Shweta Srivastava', '1962-04-14', 'Male', '9286630878', 'Varanasi, UP', 'A-'),
+    ('Harish Sharma', '1991-08-26', 'Male', '9737599912', 'Lucknow, UP', 'O+'),
+    ('Vikram Trivedi', '1980-11-05', 'Female', '9854827139', 'Agra, UP', 'A-');
+
+INSERT INTO Ward (ward_name, ward_type, total_beds, occupied) VALUES
+    ('Ward 1 General', 'General', 20, 12),
+    ('ICU', 'ICU', 8, 5),
+    ('Private Wing A', 'Private', 10, 3),
+    ('Pediatric Ward', 'General', 15, 7),
+    ('Ward 2 General', 'General', 25, 16),
+    ('ICU - Cardiac', 'ICU', 6, 4),
+    ('Semi-Private A', 'Semi-Private', 12, 7),
+    ('Maternity Ward', 'General', 15, 9),
+    ('Private Wing B', 'Private', 8, 2),
+    ('Pediatric ICU', 'ICU', 4, 2),
+    ('Ward 3 General', 'General', 20, 10),
+    ('Semi-Private B', 'Semi-Private', 10, 5);
+
+INSERT INTO Admission (patient_id, ward_id, bed_no, admit_date, discharge_date, reason) VALUES
+    (88, 4, 9, '2024-11-16', '2024-11-30', 'Pneumonia'),
+    (55, 2, 18, '2024-04-25', '2024-05-01', 'Road traffic accident'),
+    (10, 1, 6, '2024-06-06', '2024-06-17', 'Jaundice'),
+    (57, 2, 15, '2024-12-18', NULL, 'Pre-operative workup'),
+    (35, 9, 18, '2024-09-09', '2024-09-20', 'Diabetic ketoacidosis'),
+    (114, 7, 11, '2024-11-05', NULL, 'Hypertensive crisis'),
+    (30, 11, 19, '2024-10-27', '2024-11-10', 'Fever and chills'),
+    (106, 5, 19, '2024-01-21', '2024-01-25', 'Anemia management'),
+    (67, 11, 15, '2024-05-22', NULL, 'UTI'),
+    (56, 11, 16, '2024-02-16', '2024-02-24', 'Renal colic'),
+    (42, 11, 4, '2024-03-23', NULL, 'Migraine management'),
+    (64, 5, 13, '2025-01-24', '2025-02-02', 'Hypertensive crisis'),
+    (41, 5, 11, '2024-02-29', '2024-03-08', 'Back pain'),
+    (106, 1, 18, '2024-08-24', '2024-08-29', 'Back pain'),
+    (47, 10, 16, '2024-11-16', '2024-11-18', 'Pneumonia'),
+    (35, 9, 5, '2024-05-27', '2024-06-09', 'Anemia management'),
+    (16, 1, 20, '2024-05-02', '2024-05-08', 'Viral gastroenteritis'),
+    (2, 9, 14, '2024-02-17', NULL, 'Post appendectomy recovery'),
+    (60, 2, 5, '2024-09-12', '2024-09-18', 'Back pain'),
+    (91, 5, 14, '2024-09-04', '2024-09-09', 'Cardiac arrhythmia'),
+    (71, 3, 13, '2024-04-07', '2024-04-17', 'Kidney stone'),
+    (113, 3, 3, '2024-05-21', '2024-05-29', 'Renal colic'),
+    (120, 9, 9, '2024-01-02', NULL, 'Jaundice'),
+    (108, 10, 19, '2024-12-03', '2024-12-07', 'Cardiac arrhythmia'),
+    (69, 8, 12, '2024-06-19', '2024-06-29', 'Pre-operative workup'),
+    (59, 6, 7, '2024-12-23', NULL, 'Pre-operative workup'),
+    (30, 7, 2, '2024-06-11', '2024-06-24', 'Pre-operative workup'),
+    (50, 11, 5, '2024-09-10', '2024-09-14', 'Back pain'),
+    (76, 6, 4, '2024-08-13', NULL, 'Cardiac arrhythmia'),
+    (2, 12, 5, '2024-07-28', '2024-08-01', 'Hypertensive crisis'),
+    (61, 5, 11, '2024-11-15', '2024-11-27', 'Hypertensive crisis'),
+    (110, 6, 18, '2024-07-13', '2024-07-25', 'Migraine management'),
+    (114, 8, 18, '2024-01-19', '2024-01-24', 'Stroke observation'),
+    (88, 5, 8, '2025-01-17', NULL, 'Post appendectomy recovery'),
+    (98, 11, 4, '2024-08-15', NULL, 'Jaundice'),
+    (116, 1, 2, '2024-06-15', '2024-06-21', 'Dengue fever'),
+    (48, 7, 5, '2024-05-05', '2024-05-16', 'Fever and chills'),
+    (102, 3, 6, '2024-03-30', NULL, 'Pre-operative workup'),
+    (80, 11, 8, '2024-09-11', '2024-09-15', 'Acute asthma attack'),
+    (60, 11, 9, '2024-08-23', NULL, 'Chest pain'),
+    (116, 8, 10, '2024-12-12', '2024-12-15', 'Cardiac arrhythmia'),
+    (45, 10, 10, '2024-11-23', '2024-12-06', 'Seizure episode'),
+    (59, 5, 7, '2024-07-15', '2024-07-18', 'Acute asthma attack'),
+    (49, 10, 12, '2024-10-21', NULL, 'Migraine management'),
+    (38, 1, 13, '2024-05-20', NULL, 'Fever and chills'),
+    (100, 12, 2, '2024-11-06', '2024-11-12', 'Appendicitis'),
+    (103, 4, 20, '2024-06-29', NULL, 'Pneumonia'),
+    (80, 5, 5, '2024-11-17', NULL, 'Stroke observation'),
+    (83, 1, 10, '2024-08-13', NULL, 'Dengue fever'),
+    (94, 3, 3, '2024-05-31', NULL, 'Post-operative care'),
+    (23, 4, 5, '2024-10-03', '2024-10-10', 'Back pain'),
+    (65, 5, 6, '2024-05-11', '2024-05-20', 'Jaundice'),
+    (96, 6, 4, '2024-08-27', '2024-08-31', 'Appendicitis'),
+    (29, 11, 13, '2024-10-12', '2024-10-26', 'Pre-operative workup'),
+    (2, 5, 18, '2024-03-04', '2024-03-16', 'Kidney stone'),
+    (87, 5, 19, '2024-07-14', '2024-07-21', 'Post appendectomy recovery'),
+    (87, 4, 16, '2024-01-13', '2024-01-23', 'Renal colic'),
+    (118, 10, 8, '2024-11-27', NULL, 'Cardiac arrhythmia'),
+    (117, 12, 10, '2024-11-28', '2024-12-02', 'Diabetic ketoacidosis'),
+    (5, 5, 16, '2024-02-29', NULL, 'Viral gastroenteritis'),
+    (18, 7, 15, '2024-07-08', '2024-07-21', 'Migraine management'),
+    (70, 7, 19, '2025-01-15', '2025-01-23', 'Stroke observation'),
+    (13, 8, 20, '2024-07-27', '2024-08-02', 'Diabetic ketoacidosis'),
+    (89, 6, 7, '2024-08-15', '2024-08-20', 'Dengue fever'),
+    (13, 11, 12, '2024-10-05', '2024-10-17', 'Dengue fever'),
+    (8, 7, 9, '2024-04-07', '2024-04-16', 'Hypertensive crisis'),
+    (85, 4, 20, '2024-01-11', NULL, 'Renal colic'),
+    (32, 3, 19, '2024-04-15', NULL, 'Appendicitis'),
+    (71, 4, 19, '2024-04-20', '2024-04-25', 'Renal colic'),
+    (100, 3, 20, '2024-01-02', NULL, 'Road traffic accident'),
+    (17, 9, 9, '2024-03-30', NULL, 'Chest pain'),
+    (17, 1, 12, '2024-05-01', '2024-05-03', 'Severe dehydration'),
+    (34, 1, 5, '2025-01-14', '2025-01-17', 'Kidney stone'),
+    (9, 8, 15, '2024-07-04', '2024-07-07', 'Cardiac arrhythmia'),
+    (65, 4, 20, '2024-01-23', '2024-02-04', 'Back pain'),
+    (39, 8, 1, '2024-02-01', '2024-02-09', 'Post-operative care'),
+    (88, 2, 16, '2024-12-30', '2025-01-02', 'Hypertensive crisis'),
+    (42, 10, 5, '2024-02-03', NULL, 'Fracture stabilization'),
+    (82, 10, 18, '2024-12-30', NULL, 'Fracture stabilization'),
+    (68, 5, 15, '2024-09-15', '2024-09-18', 'Migraine management'),
+    (15, 11, 18, '2025-01-04', '2025-01-12', 'Cardiac arrhythmia'),
+    (114, 4, 14, '2024-06-22', '2024-06-30', 'Post-operative care'),
+    (94, 2, 11, '2024-08-06', NULL, 'Seizure episode'),
+    (48, 3, 16, '2024-02-04', NULL, 'Hypertensive crisis'),
+    (12, 7, 4, '2025-01-16', '2025-01-30', 'Road traffic accident'),
+    (72, 1, 19, '2024-10-14', '2024-10-26', 'Post appendectomy recovery'),
+    (53, 6, 14, '2025-01-04', NULL, 'Jaundice'),
+    (77, 5, 12, '2024-02-23', '2024-02-28', 'Road traffic accident'),
+    (85, 8, 8, '2024-02-25', '2024-03-06', 'Dengue fever'),
+    (15, 5, 19, '2024-04-25', '2024-05-05', 'Appendicitis'),
+    (105, 10, 20, '2024-12-11', '2024-12-13', 'Fracture stabilization'),
+    (119, 11, 9, '2024-01-15', NULL, 'Migraine management'),
+    (98, 5, 11, '2024-06-28', NULL, 'Road traffic accident'),
+    (73, 11, 13, '2024-02-05', NULL, 'Stroke observation'),
+    (4, 2, 17, '2024-04-20', '2024-04-29', 'Renal colic'),
+    (21, 6, 10, '2025-01-04', NULL, 'UTI'),
+    (77, 2, 2, '2024-03-20', NULL, 'Fracture stabilization'),
+    (7, 11, 3, '2024-05-19', '2024-05-27', 'Anemia management'),
+    (78, 8, 14, '2024-05-19', NULL, 'Back pain'),
+    (15, 6, 14, '2024-02-26', NULL, 'Fever and chills'),
+    (76, 8, 17, '2024-12-07', NULL, 'Acute asthma attack'),
+    (51, 10, 2, '2024-01-04', NULL, 'Pneumonia'),
+    (99, 3, 9, '2024-05-28', NULL, 'Chest pain'),
+    (64, 12, 14, '2024-03-30', NULL, 'Viral gastroenteritis'),
+    (91, 4, 17, '2024-10-13', '2024-10-27', 'Dengue fever'),
+    (10, 7, 2, '2024-08-11', NULL, 'Hypertensive crisis'),
+    (111, 6, 19, '2024-08-07', '2024-08-20', 'Stroke observation'),
+    (54, 5, 4, '2024-07-26', NULL, 'Renal colic'),
+    (22, 10, 15, '2024-12-19', '2024-12-22', 'Post-operative care'),
+    (109, 2, 8, '2024-08-11', '2024-08-21', 'Hypertensive crisis');
+
+INSERT INTO Supplier (supplier_name, contact, address) VALUES
+    ('MedPlus Pharma', '9000111001', 'Chandigarh Industrial Area'),
+    ('HealthCare Supplies', '9000111002', 'Delhi Pharmaceutical Hub'),
+    ('PharmaBridge Ltd', '9100200301', 'Amritsar Trade Zone'),
+    ('CureAll Distributors', '9100200302', 'Ludhiana Industrial Hub'),
+    ('BioMed Supplies', '9100200303', 'Noida Sector 62'),
+    ('LifeLine Pharma', '9100200304', 'Gurgaon Phase 4'),
+    ('GlobalMeds India', '9100200305', 'Mumbai BKC'),
+    ('EastHeal Corp', '9100200306', 'Kolkata Saltlake'),
+    ('NorthPharma', '9100200307', 'Amritsar Industrial'),
+    ('SunMed Distributors', '9100200308', 'Patiala Trade Zone');
+
+INSERT INTO Medicine (name, category, price, stock_qty, supplier_id) VALUES
+    ('Aspirin 75mg', 'Antiplatelet', 5.0, 500, 1),
+    ('Amoxicillin 500mg', 'Antibiotic', 12.0, 300, 1),
+    ('Paracetamol 500mg', 'Analgesic', 3.5, 1000, 2),
+    ('Atorvastatin 10mg', 'Statin', 25.0, 200, 2),
+    ('Metformin 500mg', 'Antidiabetic', 10.0, 400, 1),
+    ('Ibuprofen 400mg', 'NSAID', 8.0, 600, 2),
+    ('Omeprazole 20mg', 'Antacid', 15.0, 450, 3),
+    ('Cetirizine 10mg', 'Antihistamine', 6.0, 700, 3),
+    ('Losartan 50mg', 'Antihypertensive', 22.0, 350, 4),
+    ('Amlodipine 5mg', 'Calcium Blocker', 18.0, 300, 4),
+    ('Ciprofloxacin 500mg', 'Antibiotic', 20.0, 250, 5),
+    ('Dolo 650mg', 'Analgesic', 4.0, 1200, 5),
+    ('Pantoprazole 40mg', 'Antacid', 12.0, 500, 6),
+    ('Clopidogrel 75mg', 'Antiplatelet', 28.0, 220, 6),
+    ('Vitamin D3 60K', 'Supplement', 35.0, 600, 7),
+    ('Glimepiride 2mg', 'Antidiabetic', 14.0, 400, 7),
+    ('Ramipril 5mg', 'ACE Inhibitor', 16.0, 320, 8),
+    ('Diclofenac 50mg', 'NSAID', 9.0, 550, 8),
+    ('Montelukast 10mg', 'Antiasthmatic', 30.0, 180, 9),
+    ('Folic Acid 5mg', 'Supplement', 5.0, 800, 9),
+    ('Azithromycin 500mg', 'Antibiotic', 18.0, 260, 10),
+    ('Levothyroxine 50mcg', 'Thyroid', 22.0, 190, 10),
+    ('Hydroxychloroquine 200mg', 'Antimalarial', 35.0, 150, 3),
+    ('Ondansetron 4mg', 'Antiemetic', 12.0, 400, 4),
+    ('Pregabalin 75mg', 'Neuropathic', 45.0, 120, 5);
+
+INSERT INTO Appointment (patient_id, doctor_id, appt_date, status) VALUES
+    (51, 14, '2024-06-07 16:00:00', 'Scheduled'),
+    (43, 13, '2024-03-27 09:30:00', 'Completed'),
+    (15, 9, '2024-09-18 10:30:00', 'Cancelled'),
+    (45, 6, '2025-01-07 15:30:00', 'Completed'),
+    (31, 2, '2024-03-15 11:00:00', 'Scheduled'),
+    (78, 3, '2025-01-24 15:30:00', 'Scheduled'),
+    (99, 11, '2024-09-09 14:00:00', 'Completed'),
+    (98, 10, '2024-08-17 15:30:00', 'Cancelled'),
+    (73, 11, '2024-11-21 15:00:00', 'Scheduled'),
+    (81, 6, '2024-03-18 14:00:00', 'Scheduled'),
+    (57, 11, '2024-06-04 11:00:00', 'Completed'),
+    (46, 9, '2024-02-07 11:00:00', 'Completed'),
+    (5, 1, '2024-07-07 11:00:00', 'Scheduled'),
+    (111, 14, '2024-02-16 15:00:00', 'Completed'),
+    (50, 8, '2024-10-24 14:30:00', 'Cancelled'),
+    (95, 15, '2024-01-22 14:00:00', 'Cancelled'),
+    (74, 11, '2024-04-06 11:30:00', 'Completed'),
+    (65, 3, '2024-02-01 14:00:00', 'Scheduled'),
+    (116, 14, '2024-06-24 16:00:00', 'Scheduled'),
+    (83, 3, '2024-01-21 10:30:00', 'Completed'),
+    (57, 9, '2024-09-24 15:00:00', 'Scheduled'),
+    (48, 15, '2024-05-24 12:00:00', 'Completed'),
+    (44, 11, '2024-11-02 09:00:00', 'Completed'),
+    (83, 6, '2024-02-03 11:30:00', 'Scheduled'),
+    (87, 7, '2024-05-25 11:00:00', 'Completed'),
+    (85, 15, '2024-11-04 10:00:00', 'Scheduled'),
+    (75, 11, '2024-03-13 11:30:00', 'Scheduled'),
+    (84, 12, '2024-12-05 12:00:00', 'Scheduled'),
+    (91, 2, '2024-06-07 14:30:00', 'Completed'),
+    (102, 6, '2025-02-20 10:00:00', 'Completed'),
+    (107, 12, '2024-12-16 14:30:00', 'Scheduled'),
+    (86, 7, '2024-09-17 11:30:00', 'Scheduled'),
+    (40, 3, '2024-04-19 11:30:00', 'Cancelled'),
+    (63, 4, '2024-04-25 10:00:00', 'Scheduled'),
+    (38, 14, '2025-02-07 09:30:00', 'Completed'),
+    (70, 14, '2025-01-13 14:30:00', 'Scheduled'),
+    (44, 15, '2025-01-27 15:00:00', 'Scheduled'),
+    (49, 3, '2024-03-24 10:00:00', 'Completed'),
+    (99, 10, '2025-02-18 10:00:00', 'Completed'),
+    (6, 7, '2024-07-05 15:30:00', 'Completed'),
+    (57, 10, '2024-05-25 16:00:00', 'Completed'),
+    (30, 9, '2024-05-02 11:00:00', 'Cancelled'),
+    (101, 8, '2025-03-03 10:30:00', 'Completed'),
+    (74, 8, '2024-08-24 11:00:00', 'Completed'),
+    (65, 9, '2024-08-02 10:00:00', 'Completed'),
+    (103, 10, '2024-03-11 11:00:00', 'Scheduled'),
+    (62, 14, '2024-07-09 14:30:00', 'Cancelled'),
+    (92, 14, '2024-09-21 09:30:00', 'Scheduled'),
+    (98, 3, '2024-05-19 14:00:00', 'Cancelled'),
+    (19, 14, '2024-08-11 09:30:00', 'Cancelled'),
+    (29, 14, '2024-08-18 11:30:00', 'Cancelled'),
+    (54, 1, '2024-07-21 14:30:00', 'Completed'),
+    (50, 2, '2024-07-10 10:30:00', 'Scheduled'),
+    (120, 2, '2025-03-05 16:00:00', 'Completed'),
+    (102, 3, '2024-03-11 09:00:00', 'Scheduled'),
+    (107, 8, '2024-12-22 10:00:00', 'Completed'),
+    (61, 8, '2024-11-11 09:00:00', 'Cancelled'),
+    (3, 5, '2024-04-20 10:00:00', 'Completed'),
+    (94, 10, '2024-09-27 12:00:00', 'Scheduled'),
+    (37, 4, '2024-06-03 09:30:00', 'Scheduled'),
+    (54, 11, '2025-02-10 15:00:00', 'Completed'),
+    (15, 14, '2024-09-12 15:00:00', 'Completed'),
+    (81, 9, '2024-10-21 10:30:00', 'Completed'),
+    (38, 7, '2024-01-01 15:00:00', 'Completed'),
+    (74, 7, '2024-04-05 15:30:00', 'Completed'),
+    (68, 6, '2024-02-04 14:30:00', 'Completed'),
+    (101, 9, '2024-10-10 09:00:00', 'Completed'),
+    (61, 1, '2024-11-21 12:00:00', 'Cancelled'),
+    (33, 12, '2024-01-09 11:30:00', 'Completed'),
+    (45, 4, '2025-01-10 15:30:00', 'Completed'),
+    (99, 10, '2025-01-11 11:30:00', 'Scheduled'),
+    (46, 9, '2024-06-22 15:30:00', 'Scheduled'),
+    (100, 11, '2024-08-25 16:00:00', 'Completed'),
+    (24, 13, '2024-03-10 09:30:00', 'Completed'),
+    (59, 1, '2024-05-30 10:30:00', 'Scheduled'),
+    (26, 15, '2024-01-22 11:30:00', 'Cancelled'),
+    (66, 7, '2025-02-21 14:30:00', 'Completed'),
+    (5, 13, '2024-11-27 10:30:00', 'Scheduled'),
+    (111, 13, '2024-01-25 15:30:00', 'Scheduled'),
+    (16, 13, '2024-07-07 12:00:00', 'Cancelled'),
+    (96, 8, '2024-07-16 11:30:00', 'Cancelled'),
+    (64, 12, '2024-09-11 11:30:00', 'Cancelled'),
+    (67, 5, '2025-02-14 09:30:00', 'Completed'),
+    (11, 7, '2024-11-04 10:00:00', 'Completed'),
+    (42, 2, '2024-02-10 11:30:00', 'Completed'),
+    (40, 8, '2024-11-04 16:00:00', 'Completed'),
+    (89, 8, '2024-06-28 14:00:00', 'Scheduled'),
+    (112, 15, '2024-06-29 15:00:00', 'Cancelled'),
+    (36, 11, '2025-02-09 09:00:00', 'Scheduled'),
+    (82, 7, '2024-07-05 14:30:00', 'Completed'),
+    (87, 3, '2024-01-16 10:00:00', 'Completed'),
+    (87, 13, '2024-08-12 09:00:00', 'Scheduled'),
+    (31, 13, '2024-11-26 11:30:00', 'Completed'),
+    (73, 1, '2024-11-05 10:00:00', 'Completed'),
+    (48, 6, '2024-08-15 09:30:00', 'Completed'),
+    (68, 6, '2024-07-22 11:30:00', 'Completed'),
+    (32, 2, '2024-01-14 16:00:00', 'Scheduled'),
+    (67, 7, '2024-10-14 09:30:00', 'Scheduled'),
+    (34, 12, '2024-08-16 10:30:00', 'Cancelled'),
+    (37, 12, '2024-09-08 10:30:00', 'Scheduled'),
+    (110, 2, '2024-08-19 10:00:00', 'Cancelled'),
+    (57, 2, '2025-02-18 15:30:00', 'Cancelled'),
+    (41, 11, '2024-06-26 16:00:00', 'Scheduled'),
+    (70, 5, '2024-06-02 10:00:00', 'Completed'),
+    (119, 12, '2024-11-22 10:00:00', 'Completed'),
+    (66, 4, '2024-03-03 10:30:00', 'Completed'),
+    (31, 13, '2024-09-09 09:00:00', 'Completed'),
+    (74, 6, '2024-08-27 14:30:00', 'Scheduled'),
+    (114, 2, '2024-02-03 11:00:00', 'Completed'),
+    (92, 12, '2024-09-02 14:30:00', 'Completed'),
+    (53, 14, '2024-10-21 09:30:00', 'Scheduled'),
+    (41, 11, '2024-02-07 14:00:00', 'Completed'),
+    (67, 6, '2024-03-06 14:30:00', 'Completed'),
+    (24, 13, '2024-03-07 12:00:00', 'Completed'),
+    (112, 1, '2025-03-01 09:30:00', 'Completed'),
+    (39, 3, '2024-03-23 11:30:00', 'Cancelled'),
+    (29, 6, '2024-09-22 11:00:00', 'Completed'),
+    (33, 4, '2024-11-21 14:30:00', 'Scheduled'),
+    (81, 5, '2024-11-10 14:30:00', 'Scheduled'),
+    (83, 3, '2024-10-30 15:00:00', 'Scheduled');
+
+INSERT INTO Prescription (patient_id, doctor_id, medicine_id, dosage, days, issue_date) VALUES
+    (85, 10, 24, '1 syrup 5ml twice daily', 24, '2025-03-07'),
+    (119, 10, 2, '1 tablet twice daily after food', 8, '2024-01-24'),
+    (83, 13, 19, 'Half tablet twice a day', 44, '2024-04-17'),
+    (99, 10, 14, '1 syrup 5ml twice daily', 43, '2024-01-16'),
+    (64, 15, 21, '1 capsule in the morning', 21, '2024-11-24'),
+    (39, 8, 8, '1 tablet every 12 hours', 22, '2024-08-20'),
+    (10, 12, 2, '2 tablets every 8 hours', 31, '2024-07-31'),
+    (62, 8, 7, '1 tablet thrice daily before meals', 41, '2024-03-14'),
+    (41, 14, 23, '1 tablet thrice daily before meals', 49, '2025-03-16'),
+    (45, 7, 5, '1 tablet thrice daily before meals', 35, '2024-10-14'),
+    (14, 6, 8, '2 tablets daily with water', 10, '2024-05-16'),
+    (58, 4, 5, '1 capsule at bedtime', 6, '2024-05-28'),
+    (50, 14, 20, '1 tablet every 12 hours', 18, '2025-03-19'),
+    (116, 3, 11, '1 syrup 5ml twice daily', 49, '2024-06-09'),
+    (25, 13, 6, '2 tablets daily with water', 35, '2024-08-27'),
+    (64, 15, 10, '2 tablets daily with water', 4, '2024-02-16'),
+    (51, 9, 15, '1 tablet once daily after food', 16, '2024-10-25'),
+    (46, 1, 2, 'Half tablet twice a day', 34, '2024-11-01'),
+    (113, 14, 21, '2 tablets daily with water', 21, '2024-10-01'),
+    (2, 14, 4, '1 tablet every 12 hours', 11, '2025-03-27'),
+    (34, 12, 12, '1 tablet every 12 hours', 26, '2024-01-24'),
+    (52, 1, 19, '1 capsule in the morning', 15, '2024-07-04'),
+    (71, 5, 3, '1 tablet every 12 hours', 35, '2024-08-18'),
+    (98, 9, 9, '1 syrup 5ml twice daily', 46, '2024-11-08'),
+    (16, 3, 4, '1 tablet every 12 hours', 26, '2025-02-10'),
+    (44, 9, 12, '2 tablets every 8 hours', 15, '2024-11-04'),
+    (66, 7, 17, '1 tablet twice daily after food', 5, '2024-01-20'),
+    (18, 12, 11, '2 tablets daily with water', 36, '2024-08-21'),
+    (20, 10, 17, '2 tablets every 8 hours', 23, '2024-11-09'),
+    (41, 3, 13, '1 syrup 5ml twice daily', 50, '2025-03-07'),
+    (39, 10, 11, '1 capsule in the morning', 56, '2024-09-17'),
+    (69, 8, 23, '1 syrup 5ml twice daily', 22, '2024-08-31'),
+    (105, 1, 12, '1 tablet thrice daily before meals', 46, '2024-02-26'),
+    (54, 10, 10, '1 tablet twice daily after food', 41, '2024-08-30'),
+    (34, 11, 25, '1 syrup 5ml twice daily', 39, '2024-04-26'),
+    (93, 1, 19, '2 tablets daily with water', 13, '2024-09-25'),
+    (81, 12, 20, '1 tablet every 12 hours', 12, '2025-02-24'),
+    (88, 4, 2, '1 syrup 5ml twice daily', 47, '2024-02-26'),
+    (25, 1, 15, '1 tablet thrice daily before meals', 29, '2024-03-18'),
+    (53, 12, 7, '1 tablet every 12 hours', 35, '2025-01-31'),
+    (79, 15, 16, '1 tablet twice daily after food', 48, '2024-03-11'),
+    (67, 4, 18, '1 tablet thrice daily before meals', 45, '2024-09-01'),
+    (68, 7, 11, '2 tablets every 8 hours', 32, '2024-09-29'),
+    (44, 9, 12, 'Half tablet twice a day', 42, '2024-09-04'),
+    (25, 4, 9, '1 capsule in the morning', 22, '2024-04-25'),
+    (39, 13, 10, '1 tablet once daily after food', 47, '2024-12-26'),
+    (63, 6, 16, '1 tablet thrice daily before meals', 38, '2025-02-11'),
+    (93, 5, 10, '1 capsule at bedtime', 39, '2024-12-12'),
+    (70, 7, 13, '1 tablet thrice daily before meals', 52, '2025-02-15'),
+    (19, 5, 2, 'Half tablet twice a day', 48, '2024-02-10'),
+    (45, 15, 15, 'Half tablet twice a day', 50, '2024-09-02'),
+    (28, 4, 18, 'Half tablet twice a day', 38, '2024-12-22'),
+    (35, 3, 4, '1 syrup 5ml twice daily', 50, '2024-10-27'),
+    (31, 4, 2, '1 capsule in the morning', 17, '2024-11-22'),
+    (30, 1, 4, '1 tablet every 12 hours', 24, '2025-01-02'),
+    (61, 2, 22, '2 tablets every 8 hours', 3, '2024-10-08'),
+    (119, 3, 14, '2 tablets daily with water', 33, '2024-11-29'),
+    (26, 13, 10, '1 tablet thrice daily before meals', 21, '2024-11-26'),
+    (8, 15, 25, '1 capsule at bedtime', 44, '2024-10-20'),
+    (30, 9, 24, '1 tablet twice daily after food', 14, '2024-08-01'),
+    (113, 14, 6, '1 tablet twice daily after food', 56, '2024-07-22'),
+    (101, 8, 6, 'Half tablet twice a day', 59, '2024-01-20'),
+    (2, 5, 19, '1 syrup 5ml twice daily', 9, '2024-06-20'),
+    (37, 8, 21, '1 capsule in the morning', 36, '2024-09-09'),
+    (114, 3, 17, '2 tablets daily with water', 20, '2024-04-08'),
+    (104, 2, 11, '2 tablets every 8 hours', 49, '2024-08-22'),
+    (83, 5, 23, '2 tablets every 8 hours', 3, '2025-01-12'),
+    (44, 13, 10, '1 syrup 5ml twice daily', 46, '2025-01-22'),
+    (25, 3, 20, '1 tablet every 12 hours', 55, '2024-08-06'),
+    (66, 6, 3, '1 tablet every 12 hours', 45, '2024-02-18'),
+    (24, 3, 16, '1 tablet thrice daily before meals', 18, '2024-01-04'),
+    (34, 7, 8, '2 tablets daily with water', 51, '2024-05-16'),
+    (43, 5, 19, '1 syrup 5ml twice daily', 3, '2024-05-13'),
+    (84, 6, 23, '1 tablet once daily after food', 6, '2024-12-07'),
+    (16, 8, 10, '2 tablets every 8 hours', 28, '2024-12-17'),
+    (65, 15, 23, 'Half tablet twice a day', 47, '2024-03-01'),
+    (82, 15, 10, '1 tablet thrice daily before meals', 42, '2024-04-23'),
+    (29, 3, 16, '2 tablets every 8 hours', 32, '2025-01-17'),
+    (78, 6, 14, '1 capsule in the morning', 33, '2025-01-22'),
+    (69, 13, 22, '1 tablet once daily after food', 51, '2024-05-06'),
+    (88, 13, 20, '1 capsule at bedtime', 36, '2024-08-16'),
+    (68, 12, 12, '1 capsule at bedtime', 39, '2024-02-27'),
+    (8, 14, 18, '1 capsule in the morning', 15, '2024-10-20'),
+    (69, 3, 6, '1 tablet thrice daily before meals', 57, '2024-09-23'),
+    (57, 2, 22, '1 tablet once daily after food', 48, '2024-10-25'),
+    (63, 2, 17, '2 tablets daily with water', 54, '2024-01-29'),
+    (59, 3, 17, '1 tablet every 12 hours', 32, '2024-10-15'),
+    (8, 9, 15, 'Half tablet twice a day', 49, '2024-01-12'),
+    (51, 5, 1, '1 tablet once daily after food', 40, '2024-02-07'),
+    (6, 7, 12, '1 capsule at bedtime', 37, '2024-01-31'),
+    (120, 15, 3, '2 tablets daily with water', 5, '2024-05-26'),
+    (53, 3, 25, '2 tablets every 8 hours', 52, '2024-11-24'),
+    (94, 11, 14, '1 tablet thrice daily before meals', 60, '2024-07-14'),
+    (58, 14, 13, '1 tablet every 12 hours', 8, '2024-12-15'),
+    (85, 14, 18, '2 tablets every 8 hours', 44, '2025-03-16'),
+    (45, 2, 6, '1 capsule in the morning', 28, '2024-09-27'),
+    (17, 12, 8, '1 tablet twice daily after food', 51, '2024-01-12'),
+    (39, 8, 22, '1 capsule in the morning', 30, '2024-09-29'),
+    (49, 14, 8, '1 tablet once daily after food', 32, '2024-06-26'),
+    (20, 5, 7, '1 capsule at bedtime', 5, '2025-02-18'),
+    (85, 7, 20, '1 tablet twice daily after food', 18, '2024-04-15'),
+    (9, 2, 20, '1 tablet twice daily after food', 31, '2024-11-02'),
+    (87, 12, 2, '1 tablet once daily after food', 50, '2024-01-23'),
+    (52, 8, 8, '1 capsule in the morning', 16, '2025-01-21'),
+    (111, 13, 2, '2 tablets every 8 hours', 35, '2024-05-28'),
+    (30, 14, 24, '1 syrup 5ml twice daily', 23, '2024-10-22'),
+    (77, 13, 22, '1 tablet thrice daily before meals', 18, '2024-06-03'),
+    (113, 3, 22, '1 capsule in the morning', 17, '2024-07-30'),
+    (39, 5, 2, '1 capsule in the morning', 40, '2025-03-26'),
+    (95, 15, 6, '1 tablet every 12 hours', 38, '2024-09-10'),
+    (7, 6, 21, '1 tablet every 12 hours', 53, '2024-09-25'),
+    (41, 12, 14, '1 tablet every 12 hours', 12, '2024-06-02'),
+    (49, 3, 25, '1 capsule in the morning', 33, '2024-05-03'),
+    (109, 4, 10, '2 tablets every 8 hours', 54, '2024-08-25'),
+    (118, 1, 18, '1 tablet every 12 hours', 29, '2024-10-12'),
+    (68, 3, 13, '1 tablet once daily after food', 19, '2024-04-14'),
+    (43, 11, 3, '2 tablets daily with water', 57, '2024-07-08'),
+    (12, 9, 24, '1 tablet once daily after food', 6, '2024-05-17'),
+    (49, 11, 20, '1 syrup 5ml twice daily', 5, '2025-03-23'),
+    (10, 4, 25, '1 syrup 5ml twice daily', 49, '2024-12-09');
+
+INSERT INTO Lab_Test (patient_id, doctor_id, test_name, result, test_fee, test_date) VALUES
+    (72, 4, 'Malaria Antigen', 'Negative', 300, '2024-04-16'),
+    (112, 15, '2D Echo', 'EF 55 percent normal LV function', 1800, '2024-06-04'),
+    (117, 1, 'Thyroid TSH', 'TSH 5.8 subclinical hypothyroidism', 500, '2024-04-07'),
+    (95, 2, 'PSA', 'PSA 2.1 ng/mL within normal range', 900, '2025-01-21'),
+    (62, 15, 'Urine R/E', 'Pus cells 10-15 per hpf', 150, '2024-12-22'),
+    (78, 12, 'Thyroid TSH', 'TSH 5.8 subclinical hypothyroidism', 500, '2024-07-22'),
+    (118, 4, 'Serum Electrolytes', 'Sodium 138 Potassium 3.9 normal', 400, '2024-06-13'),
+    (100, 5, 'MRI Brain', 'Small lacunar infarct in basal ganglia', 4500, '2024-08-26'),
+    (69, 11, 'CT Abdomen', 'No acute intraabdominal pathology', 3000, '2024-06-06'),
+    (34, 6, 'HIV Screening', 'Non-reactive', 250, '2025-03-27'),
+    (64, 8, 'Blood Sugar FBS', 'Fasting blood sugar 126 mg/dL', 200, '2025-02-15'),
+    (93, 8, 'Pap Smear', 'No abnormal cells detected', 600, '2025-03-05'),
+    (41, 15, 'Thyroid TSH', 'TSH 5.8 subclinical hypothyroidism', 500, '2024-07-08'),
+    (41, 7, 'LFT', 'Liver enzymes mildly elevated', 600, '2024-10-15'),
+    (111, 4, 'PSA', 'PSA 2.1 ng/mL within normal range', 900, '2024-03-15'),
+    (3, 5, 'Serum Electrolytes', 'Sodium 138 Potassium 3.9 normal', 400, '2024-10-26'),
+    (75, 12, 'USG Abdomen', 'Fatty liver grade I', 800, '2024-05-31'),
+    (20, 4, '2D Echo', 'EF 55 percent normal LV function', 1800, '2024-04-27'),
+    (49, 10, 'Urine R/E', 'Pus cells 10-15 per hpf', 150, '2024-09-12'),
+    (71, 11, 'Vitamin B12', 'Serum B12 deficient 180 pg/mL', 450, '2024-06-21'),
+    (33, 13, 'Malaria Antigen', 'Negative', 300, '2025-01-05'),
+    (83, 12, 'Malaria Antigen', 'Negative', 300, '2024-08-23'),
+    (22, 12, 'CT Abdomen', 'No acute intraabdominal pathology', 3000, '2024-03-27'),
+    (18, 12, 'Serum Electrolytes', 'Sodium 138 Potassium 3.9 normal', 400, '2024-09-07'),
+    (24, 15, 'Serum Electrolytes', 'Sodium 138 Potassium 3.9 normal', 400, '2024-11-24'),
+    (8, 9, 'LFT', 'Liver enzymes mildly elevated', 600, '2025-03-05'),
+    (109, 2, 'Vitamin B12', 'Serum B12 deficient 180 pg/mL', 450, '2024-01-25'),
+    (98, 1, 'USG Abdomen', 'Fatty liver grade I', 800, '2024-03-11'),
+    (108, 11, 'Urine R/E', 'Pus cells 10-15 per hpf', 150, '2024-02-04'),
+    (91, 3, 'CBC', 'Complete blood count within normal limits', 450, '2024-04-21'),
+    (65, 8, 'CT Abdomen', 'No acute intraabdominal pathology', 3000, '2024-01-31'),
+    (80, 11, 'Vitamin B12', 'Serum B12 deficient 180 pg/mL', 450, '2024-11-11'),
+    (117, 8, 'Vitamin B12', 'Serum B12 deficient 180 pg/mL', 450, '2024-09-06'),
+    (3, 1, 'Serum Electrolytes', 'Sodium 138 Potassium 3.9 normal', 400, '2024-10-09'),
+    (53, 1, 'CBC', 'Complete blood count within normal limits', 450, '2024-09-28'),
+    (93, 5, 'Serum Electrolytes', 'Sodium 138 Potassium 3.9 normal', 400, '2024-05-26'),
+    (3, 9, 'Iron Studies', 'Serum iron low ferritin low', 550, '2024-12-11'),
+    (56, 13, 'Lipid Profile', 'LDL 145 mg/dL HDL 38 mg/dL', 800, '2024-02-24'),
+    (118, 2, 'HIV Screening', 'Non-reactive', 250, '2024-03-17'),
+    (31, 4, 'D-Dimer', 'D-Dimer 0.4 ug/mL not elevated', 700, '2024-09-26'),
+    (33, 14, 'CT Abdomen', 'No acute intraabdominal pathology', 3000, '2024-05-16'),
+    (102, 7, 'RFT', 'Creatinine 1.2 mg/dL mild impairment', 550, '2024-07-10'),
+    (52, 8, 'PT/INR', 'INR 1.1 normal coagulation', 350, '2024-05-04'),
+    (90, 4, 'ECG', 'Normal sinus rhythm', 350, '2024-12-16'),
+    (106, 14, 'RFT', 'Creatinine 1.2 mg/dL mild impairment', 550, '2024-11-30'),
+    (110, 11, 'Pap Smear', 'No abnormal cells detected', 600, '2024-01-17'),
+    (12, 7, 'MRI Brain', 'Small lacunar infarct in basal ganglia', 4500, '2024-07-12'),
+    (71, 8, 'LFT', 'Liver enzymes mildly elevated', 600, '2024-11-22'),
+    (2, 12, 'Lipid Profile', 'LDL 145 mg/dL HDL 38 mg/dL', 800, '2024-02-12'),
+    (64, 14, 'USG Abdomen', 'Fatty liver grade I', 800, '2024-11-26'),
+    (101, 6, 'PT/INR', 'INR 1.1 normal coagulation', 350, '2025-03-15'),
+    (13, 15, 'HIV Screening', 'Non-reactive', 250, '2024-01-22'),
+    (30, 4, 'Iron Studies', 'Serum iron low ferritin low', 550, '2025-03-30'),
+    (73, 8, 'X-Ray Chest PA', 'Mild cardiomegaly noted', 350, '2024-01-24'),
+    (119, 2, 'Vitamin B12', 'Serum B12 deficient 180 pg/mL', 450, '2024-05-23'),
+    (116, 9, 'PT/INR', 'INR 1.1 normal coagulation', 350, '2024-12-02'),
+    (5, 3, '2D Echo', 'EF 55 percent normal LV function', 1800, '2024-01-09'),
+    (27, 10, 'HbA1c', 'HbA1c 7.8 percent poor glycaemic control', 400, '2025-01-20'),
+    (106, 12, 'MRI Brain', 'Small lacunar infarct in basal ganglia', 4500, '2024-02-09'),
+    (39, 3, 'PT/INR', 'INR 1.1 normal coagulation', 350, '2024-05-03'),
+    (73, 14, 'MRI Brain', 'Small lacunar infarct in basal ganglia', 4500, '2024-12-12'),
+    (115, 9, '2D Echo', 'EF 55 percent normal LV function', 1800, '2024-07-15'),
+    (97, 12, 'HbA1c', 'HbA1c 7.8 percent poor glycaemic control', 400, '2025-02-08'),
+    (89, 12, 'RFT', 'Creatinine 1.2 mg/dL mild impairment', 550, '2024-09-13'),
+    (96, 6, 'LFT', 'Liver enzymes mildly elevated', 600, '2024-02-20'),
+    (56, 4, 'RFT', 'Creatinine 1.2 mg/dL mild impairment', 550, '2024-06-23'),
+    (78, 13, 'D-Dimer', 'D-Dimer 0.4 ug/mL not elevated', 700, '2024-10-31'),
+    (51, 13, '2D Echo', 'EF 55 percent normal LV function', 1800, '2024-01-16'),
+    (82, 5, 'Dengue NS1 Ag', 'Positive', 600, '2024-09-08'),
+    (30, 6, 'Serum Electrolytes', 'Sodium 138 Potassium 3.9 normal', 400, '2024-07-11'),
+    (56, 3, 'Vitamin B12', 'Serum B12 deficient 180 pg/mL', 450, '2024-10-26'),
+    (85, 7, 'RFT', 'Creatinine 1.2 mg/dL mild impairment', 550, '2025-01-30'),
+    (80, 5, 'Urine R/E', 'Pus cells 10-15 per hpf', 150, '2024-12-31'),
+    (10, 2, 'X-Ray Chest PA', 'Mild cardiomegaly noted', 350, '2024-03-19'),
+    (49, 12, 'Sputum AFB', 'No acid fast bacilli seen', 500, '2024-03-19'),
+    (95, 7, '2D Echo', 'EF 55 percent normal LV function', 1800, '2024-07-03'),
+    (14, 2, 'CBC', 'Complete blood count within normal limits', 450, '2024-06-06'),
+    (57, 6, 'Pap Smear', 'No abnormal cells detected', 600, '2024-05-18'),
+    (14, 3, 'RFT', 'Creatinine 1.2 mg/dL mild impairment', 550, '2024-04-05'),
+    (56, 8, 'Serum Electrolytes', 'Sodium 138 Potassium 3.9 normal', 400, '2024-10-11'),
+    (66, 7, 'Blood Sugar FBS', 'Fasting blood sugar 126 mg/dL', 200, '2024-01-14'),
+    (12, 6, 'Serum Electrolytes', 'Sodium 138 Potassium 3.9 normal', 400, '2024-02-17'),
+    (77, 10, '2D Echo', 'EF 55 percent normal LV function', 1800, '2025-03-18'),
+    (50, 1, 'ECG', 'Normal sinus rhythm', 350, '2024-07-30'),
+    (50, 13, 'RFT', 'Creatinine 1.2 mg/dL mild impairment', 550, '2025-01-06'),
+    (116, 9, 'Urine R/E', 'Pus cells 10-15 per hpf', 150, '2024-10-19'),
+    (67, 3, 'Vitamin B12', 'Serum B12 deficient 180 pg/mL', 450, '2024-07-13'),
+    (22, 3, 'X-Ray Chest PA', 'Mild cardiomegaly noted', 350, '2024-06-03'),
+    (35, 8, 'HbA1c', 'HbA1c 7.8 percent poor glycaemic control', 400, '2024-02-02'),
+    (22, 7, 'X-Ray Chest PA', 'Mild cardiomegaly noted', 350, '2024-08-03'),
+    (39, 8, 'RFT', 'Creatinine 1.2 mg/dL mild impairment', 550, '2024-07-03'),
+    (33, 4, 'PSA', 'PSA 2.1 ng/mL within normal range', 900, '2024-11-16'),
+    (64, 10, 'D-Dimer', 'D-Dimer 0.4 ug/mL not elevated', 700, '2024-04-10'),
+    (59, 2, 'HbA1c', 'HbA1c 7.8 percent poor glycaemic control', 400, '2024-06-04'),
+    (1, 7, '2D Echo', 'EF 55 percent normal LV function', 1800, '2025-03-06'),
+    (80, 7, '2D Echo', 'EF 55 percent normal LV function', 1800, '2024-08-13'),
+    (43, 7, 'Sputum AFB', 'No acid fast bacilli seen', 500, '2024-10-31'),
+    (18, 5, '2D Echo', 'EF 55 percent normal LV function', 1800, '2024-11-04'),
+    (89, 4, 'Malaria Antigen', 'Negative', 300, '2024-06-09'),
+    (23, 7, '2D Echo', 'EF 55 percent normal LV function', 1800, '2024-05-29'),
+    (95, 12, 'Sputum AFB', 'No acid fast bacilli seen', 500, '2024-09-08'),
+    (74, 13, 'Urine R/E', 'Pus cells 10-15 per hpf', 150, '2024-06-15'),
+    (49, 5, 'MRI Brain', 'Small lacunar infarct in basal ganglia', 4500, '2024-07-05'),
+    (15, 15, 'PT/INR', 'INR 1.1 normal coagulation', 350, '2024-04-12'),
+    (76, 9, 'Lipid Profile', 'LDL 145 mg/dL HDL 38 mg/dL', 800, '2024-12-15'),
+    (99, 9, 'CBC', 'Complete blood count within normal limits', 450, '2025-01-07'),
+    (60, 12, 'Thyroid TSH', 'TSH 5.8 subclinical hypothyroidism', 500, '2024-08-12'),
+    (103, 5, 'Iron Studies', 'Serum iron low ferritin low', 550, '2024-02-05'),
+    (105, 14, 'USG Abdomen', 'Fatty liver grade I', 800, '2024-12-10'),
+    (64, 3, 'Sputum AFB', 'No acid fast bacilli seen', 500, '2024-06-04');
+
+INSERT INTO Bill (patient_id, total_amount, paid_amount, payment_status, bill_date) VALUES
+    (31, 13755.06, 2120.25, 'Partial', '2024-08-04'),
+    (102, 19784.05, 8884.36, 'Partial', '2024-11-02'),
+    (62, 29738.83, 15891.46, 'Partial', '2025-03-21'),
+    (89, 21787.58, 801.02, 'Partial', '2024-07-03'),
+    (90, 44931.82, 24124.16, 'Partial', '2024-11-22'),
+    (118, 5621.62, 4322.77, 'Partial', '2024-12-02'),
+    (86, 18717.93, 12110.5, 'Partial', '2024-01-23'),
+    (73, 49205.0, 33335.0, 'Partial', '2024-07-23'),
+    (97, 17582.44, 13999.68, 'Partial', '2024-02-24'),
+    (2, 6282.42, 1394.7, 'Partial', '2025-01-17'),
+    (67, 28562.68, 19641.54, 'Partial', '2024-04-23'),
+    (58, 19644.8, 9096.78, 'Partial', '2024-12-13'),
+    (76, 34986.21, 5273.99, 'Partial', '2024-01-13'),
+    (62, 6570.64, 2733.22, 'Partial', '2024-02-13'),
+    (15, 41818.91, 30534.11, 'Partial', '2024-06-27'),
+    (40, 18138.73, 14225.66, 'Partial', '2024-09-23'),
+    (62, 18392.56, 1795.54, 'Partial', '2025-01-04'),
+    (90, 23443.69, 1574.81, 'Partial', '2024-01-23'),
+    (104, 35972.78, 812.45, 'Partial', '2024-06-24'),
+    (83, 6804.09, 5443.61, 'Partial', '2025-01-14'),
+    (32, 26525.7, 14639.81, 'Partial', '2024-06-18'),
+    (72, 22178.92, 10247.86, 'Partial', '2025-02-12'),
+    (52, 32043.38, 5972.47, 'Partial', '2024-12-02'),
+    (56, 20685.75, 15253.43, 'Partial', '2025-03-28'),
+    (26, 23304.39, 10010.47, 'Partial', '2024-01-03'),
+    (91, 11917.61, 3317.21, 'Partial', '2024-12-26'),
+    (104, 40106.39, 23155.34, 'Partial', '2025-02-13'),
+    (112, 27539.12, 10073.62, 'Partial', '2024-04-10'),
+    (59, 7026.82, 4712.9, 'Partial', '2024-09-07'),
+    (68, 48346.95, 15152.13, 'Partial', '2024-07-17'),
+    (79, 20538.38, 2346.14, 'Partial', '2024-06-29'),
+    (109, 23706.24, 4089.98, 'Partial', '2024-12-10'),
+    (91, 40329.75, 37050.24, 'Partial', '2024-10-29'),
+    (11, 34097.34, 10678.8, 'Partial', '2024-05-02'),
+    (40, 7172.02, 2677.36, 'Partial', '2024-03-13'),
+    (66, 20340.47, 12131.58, 'Partial', '2024-10-21'),
+    (50, 22017.38, 10715.2, 'Partial', '2024-10-02'),
+    (89, 46079.31, 42885.78, 'Partial', '2024-03-29'),
+    (72, 9592.98, 2770.79, 'Partial', '2024-04-05'),
+    (41, 42336.28, 26223.51, 'Partial', '2025-03-19'),
+    (46, 47664.33, 23098.56, 'Partial', '2024-04-09'),
+    (105, 20121.29, 11299.76, 'Partial', '2024-11-30'),
+    (64, 21343.02, 10494.92, 'Partial', '2024-12-29'),
+    (108, 23026.81, 3851.31, 'Partial', '2024-10-16'),
+    (4, 40100.22, 8843.28, 'Partial', '2024-01-17'),
+    (36, 12404.91, 3580.93, 'Partial', '2025-02-03'),
+    (59, 28934.05, 22352.93, 'Partial', '2024-09-10'),
+    (71, 26274.09, 15047.54, 'Partial', '2024-05-17'),
+    (100, 27840.65, 27587.12, 'Partial', '2024-10-04'),
+    (106, 38204.13, 29035.3, 'Partial', '2024-08-13'),
+    (70, 12099.28, 5144.07, 'Partial', '2025-01-11'),
+    (107, 33203.08, 8218.81, 'Partial', '2025-03-23'),
+    (5, 23312.02, 8126.03, 'Partial', '2025-02-22'),
+    (12, 22794.89, 22657.16, 'Partial', '2025-02-01'),
+    (104, 12991.88, 10532.55, 'Partial', '2024-10-28'),
+    (89, 18505.6, 13152.93, 'Partial', '2024-11-19'),
+    (55, 9550.11, 1329.71, 'Partial', '2024-04-15'),
+    (105, 11536.72, 684.79, 'Partial', '2024-06-28'),
+    (69, 15132.62, 8152.98, 'Partial', '2024-06-14'),
+    (91, 15692.78, 8987.81, 'Partial', '2025-03-15'),
+    (66, 49296.18, 33486.86, 'Partial', '2024-02-18'),
+    (18, 48194.44, 37865.94, 'Partial', '2024-01-31'),
+    (36, 43551.81, 5526.21, 'Partial', '2025-03-19'),
+    (17, 13609.35, 9681.62, 'Partial', '2025-02-28'),
+    (32, 38431.47, 25988.69, 'Partial', '2024-09-07'),
+    (19, 29505.14, 7928.54, 'Partial', '2024-07-31'),
+    (49, 23421.6, 14840.58, 'Partial', '2025-03-26'),
+    (99, 6015.1, 3101.47, 'Partial', '2024-05-22'),
+    (89, 46912.3, 17313.98, 'Partial', '2024-09-06'),
+    (42, 29724.84, 25828.14, 'Partial', '2025-03-09'),
+    (94, 6017.37, 5849.79, 'Partial', '2024-11-21'),
+    (86, 35318.52, 30024.49, 'Partial', '2025-02-11'),
+    (69, 20789.22, 20126.64, 'Partial', '2025-02-26'),
+    (28, 25493.67, 8231.02, 'Partial', '2024-05-25'),
+    (44, 28044.56, 3662.46, 'Partial', '2025-03-12'),
+    (63, 39732.73, 35527.21, 'Partial', '2025-01-25'),
+    (7, 3728.23, 2334.54, 'Partial', '2025-03-04'),
+    (59, 2289.65, 2128.08, 'Partial', '2024-03-21'),
+    (57, 23641.13, 23448.18, 'Partial', '2024-08-07'),
+    (26, 49791.16, 45280.44, 'Partial', '2025-03-27'),
+    (84, 16140.48, 14113.61, 'Partial', '2025-03-24'),
+    (36, 6026.99, 2172.34, 'Partial', '2024-02-12'),
+    (48, 33728.68, 21886.92, 'Partial', '2024-01-27'),
+    (51, 31841.81, 23116.78, 'Partial', '2025-01-21'),
+    (30, 22317.7, 2035.36, 'Partial', '2024-02-18'),
+    (1, 11850.93, 923.65, 'Partial', '2024-10-30'),
+    (29, 26693.05, 11880.19, 'Partial', '2024-01-05'),
+    (90, 18163.35, 2190.39, 'Partial', '2025-03-16'),
+    (55, 35160.5, 16796.18, 'Partial', '2024-04-27'),
+    (50, 5832.56, 4700.79, 'Partial', '2024-02-22'),
+    (41, 19326.74, 5783.63, 'Partial', '2024-07-14'),
+    (100, 40948.34, 35809.21, 'Partial', '2024-11-24'),
+    (87, 8428.37, 4471.32, 'Partial', '2024-01-05'),
+    (79, 33025.98, 14534.71, 'Partial', '2025-01-04'),
+    (28, 31961.88, 4838.2, 'Partial', '2024-07-29'),
+    (79, 34798.46, 29925.37, 'Partial', '2024-02-14'),
+    (115, 6372.56, 4795.01, 'Partial', '2024-10-28'),
+    (94, 20125.55, 19385.91, 'Partial', '2024-06-10'),
+    (102, 8281.76, 2293.78, 'Partial', '2024-02-13'),
+    (32, 28339.74, 17004.07, 'Partial', '2024-11-07'),
+    (37, 39280.03, 27121.92, 'Partial', '2025-03-10'),
+    (109, 33432.66, 10084.94, 'Partial', '2024-09-22'),
+    (78, 26211.84, 19602.36, 'Partial', '2024-05-31'),
+    (83, 4146.6, 3723.28, 'Partial', '2024-05-02'),
+    (64, 20215.45, 4873.58, 'Partial', '2024-11-22'),
+    (77, 4944.08, 4393.93, 'Partial', '2024-01-07'),
+    (47, 46795.33, 6176.18, 'Partial', '2025-03-16'),
+    (108, 29066.45, 10621.24, 'Partial', '2024-12-15'),
+    (23, 38492.21, 36739.0, 'Partial', '2025-01-29'),
+    (10, 2309.44, 155.96, 'Partial', '2024-05-14');
+
+
+-- ============================================================
+--  SECTION 3: SELECT QUERIES
+-- ============================================================
+
+-- Q1: List all patients with their blood group
+SELECT patient_id, name, gender, blood_group, phone FROM Patient;
+
+-- Q2: INNER JOIN – Appointments with patient & doctor names
+SELECT
+    A.appt_id,
+    P.name  AS patient_name,
+    D.name  AS doctor_name,
+    A.appt_date,
+    A.status
+FROM Appointment A
+JOIN Patient P ON A.patient_id = P.patient_id
+JOIN Doctor  D ON A.doctor_id  = D.doctor_id
+ORDER BY A.appt_date;
+
+-- Q3: LEFT JOIN – All patients and their bills
+SELECT
+    P.patient_id,
+    P.name,
+    COALESCE(B.total_amount, 0)         AS total_billed,
+    COALESCE(B.payment_status,'No Bill') AS payment_status
+FROM Patient P
+LEFT JOIN Bill B ON P.patient_id = B.patient_id;
+
+-- Q4: Aggregate – Revenue by payment status
+SELECT
+    payment_status,
+    COUNT(*)                        AS num_bills,
+    SUM(total_amount)               AS total_billed,
+    SUM(paid_amount)                AS total_collected,
+    SUM(total_amount - paid_amount) AS pending
+FROM Bill
+GROUP BY payment_status;
+
+-- Q5: GROUP BY + HAVING – Doctors with more than 1 prescription
+SELECT
+    D.name   AS doctor_name,
+    COUNT(*) AS total_prescriptions
+FROM Prescription PR
+JOIN Doctor D ON PR.doctor_id = D.doctor_id
+GROUP BY D.name
+HAVING COUNT(*) > 1;
+
+-- Q6: Subquery – Patients never admitted
+SELECT name, phone FROM Patient
+WHERE patient_id NOT IN (SELECT patient_id FROM Admission);
+
+-- Q7: Subquery – Medicines above average price
+SELECT name, category, price FROM Medicine
+WHERE price > (SELECT AVG(price) FROM Medicine)
+ORDER BY price DESC;
+
+-- Q8: Ward occupancy report
+SELECT
+    ward_name,
+    ward_type,
+    total_beds,
+    occupied,
+    (total_beds - occupied)              AS available_beds,
+    ROUND((occupied/total_beds)*100, 1)  AS occupancy_pct
+FROM Ward;
+
+-- Q9: Doctor salary report per department
+SELECT
+    Dept.dept_name,
+    COUNT(D.doctor_id) AS num_doctors,
+    AVG(D.salary)      AS avg_salary,
+    MAX(D.salary)      AS max_salary
+FROM Doctor D
+JOIN Department Dept ON D.dept_id = Dept.dept_id
+GROUP BY Dept.dept_name;
+
+-- Q10: Full prescription details (3-table join)
+SELECT
+    PR.prescription_id,
+    P.name          AS patient,
+    D.name          AS prescribed_by,
+    M.name          AS medicine,
+    PR.dosage,
+    PR.days,
+    (PR.days * M.price) AS est_medicine_cost
+FROM Prescription PR
+JOIN Patient  P ON PR.patient_id  = P.patient_id
+JOIN Doctor   D ON PR.doctor_id   = D.doctor_id
+JOIN Medicine M ON PR.medicine_id = M.medicine_id;
+
+-- Q11: VIEW – Admitted patients summary
+CREATE OR REPLACE VIEW v_CurrentAdmissions AS
+SELECT
+    P.name    AS patient_name,
+    W.ward_name,
+    W.ward_type,
+    A.bed_no,
+    A.admit_date,
+    A.reason
+FROM Admission A
+JOIN Patient P ON A.patient_id = P.patient_id
+JOIN Ward    W ON A.ward_id    = W.ward_id
+WHERE A.discharge_date IS NULL;
+
+SELECT * FROM v_CurrentAdmissions;
+
+-- Q12: VIEW – Doctor-wise appointment count
+CREATE OR REPLACE VIEW v_DoctorAppointments AS
+SELECT
+    D.name            AS doctor_name,
+    Dept.dept_name,
+    COUNT(A.appt_id)  AS total_appointments,
+    SUM(A.status = 'Completed') AS completed,
+    SUM(A.status = 'Scheduled') AS scheduled,
+    SUM(A.status = 'Cancelled') AS cancelled
+FROM Doctor D
+JOIN Department Dept ON D.dept_id    = Dept.dept_id
+LEFT JOIN Appointment A ON D.doctor_id = A.doctor_id
+GROUP BY D.name, Dept.dept_name;
+
+SELECT * FROM v_DoctorAppointments;
+
+
+-- ============================================================
+--  SECTION 4: PL/SQL – STORED PROCEDURES
+-- ============================================================
+
+DELIMITER $$
+
+-- SP1: Register a new patient
+CREATE PROCEDURE sp_RegisterPatient(
+    IN p_name      VARCHAR(100),
+    IN p_dob       DATE,
+    IN p_gender    ENUM('Male','Female','Other'),
+    IN p_phone     VARCHAR(15),
+    IN p_address   TEXT,
+    IN p_blood_grp VARCHAR(5)
+)
+BEGIN
+    INSERT INTO Patient (name, dob, gender, phone, address, blood_group)
+    VALUES (p_name, p_dob, p_gender, p_phone, p_address, p_blood_grp);
+    SELECT LAST_INSERT_ID() AS new_patient_id, 'Patient registered successfully' AS message;
+END $$
+
+-- SP2: Schedule an appointment
+CREATE PROCEDURE sp_ScheduleAppointment(
+    IN p_patient_id INT,
+    IN p_doctor_id  INT,
+    IN p_appt_date  DATETIME
+)
+BEGIN
+    DECLARE v_count INT;
+    SELECT COUNT(*) INTO v_count
+    FROM Appointment
+    WHERE doctor_id = p_doctor_id AND appt_date = p_appt_date AND status = 'Scheduled';
+
+    IF v_count > 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Doctor already has an appointment at this time.';
+    ELSE
+        INSERT INTO Appointment (patient_id, doctor_id, appt_date, status)
+        VALUES (p_patient_id, p_doctor_id, p_appt_date, 'Scheduled');
+        SELECT LAST_INSERT_ID() AS appt_id, 'Appointment scheduled' AS message;
+    END IF;
+END $$
+
+-- SP3: Generate Bill for a patient (consultation + lab tests + medicines)
+CREATE PROCEDURE sp_GenerateBill(IN p_patient_id INT)
+BEGIN
+    DECLARE v_lab_total      DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_medicine_total DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_consultation   DECIMAL(10,2) DEFAULT 500.00;
+    DECLARE v_total          DECIMAL(10,2);
+
+    SELECT COALESCE(SUM(test_fee), 0) INTO v_lab_total
+    FROM Lab_Test WHERE patient_id = p_patient_id;
+
+    SELECT COALESCE(SUM(PR.days * M.price), 0) INTO v_medicine_total
+    FROM Prescription PR
+    JOIN Medicine M ON PR.medicine_id = M.medicine_id
+    WHERE PR.patient_id = p_patient_id;
+
+    SET v_total = v_consultation + v_lab_total + v_medicine_total;
+
+    INSERT INTO Bill (patient_id, total_amount, paid_amount, payment_status)
+    VALUES (p_patient_id, v_total, 0, 'Unpaid');
+
+    SELECT v_consultation AS consultation_fee,
+           v_lab_total    AS lab_fees,
+           v_medicine_total AS medicine_cost,
+           v_total        AS grand_total,
+           LAST_INSERT_ID() AS bill_id;
+END $$
+
+DELIMITER ;
+
+-- Test stored procedures:
+CALL sp_RegisterPatient('Rohit Malhotra','1992-06-20','Male','9910001112','Mohali','B+');
+CALL sp_ScheduleAppointment(7, 1, '2025-11-20 10:00:00');
+CALL sp_GenerateBill(1);
+
+
+-- ============================================================
+--  SECTION 5: PL/SQL – FUNCTIONS
+-- ============================================================
+
+DELIMITER $$
+
+
+-- FN1: Get patient age from DOB
+CREATE FUNCTION fn_GetAge(p_dob DATE)
+RETURNS INT DETERMINISTIC
+BEGIN
+    RETURN TIMESTAMPDIFF(YEAR, p_dob, CURDATE());
+END $$
+
+
+-- FN2: Get available beds in a ward
+CREATE FUNCTION fn_AvailableBeds(p_ward_id INT)
+RETURNS INT READS SQL DATA
+BEGIN
+    DECLARE v_avail INT;
+    SELECT (total_beds - occupied) INTO v_avail
+    FROM Ward WHERE ward_id = p_ward_id;
+    RETURN COALESCE(v_avail, -1);
+END $$
+
+-- FN3: Get total bill amount for a patient
+CREATE FUNCTION fn_PatientBillTotal(p_patient_id INT)
+RETURNS DECIMAL(10,2) READS SQL DATA
+BEGIN
+    DECLARE v_total DECIMAL(10,2);
+    SELECT COALESCE(SUM(total_amount), 0) INTO v_total
+    FROM Bill WHERE patient_id = p_patient_id;
+    RETURN v_total;
+END $$
+
+DELIMITER ;
+
+-- Test functions:
+SELECT name, fn_GetAge(dob) AS age FROM Patient;
+SELECT fn_AvailableBeds(1)       AS available_in_ward1;
+SELECT fn_PatientBillTotal(1)    AS total_bill_patient1;
+
+
+-- ============================================================
+--  SECTION 6: PL/SQL – TRIGGERS
+-- ============================================================
+
+DELIMITER $$
+
+
+-- TR1: After Prescription insert → reduce medicine stock
+CREATE TRIGGER trg_ReduceStock
+AFTER INSERT ON Prescription
+FOR EACH ROW
+BEGIN
+    UPDATE Medicine SET stock_qty = stock_qty - NEW.days
+    WHERE medicine_id = NEW.medicine_id;
+END $$
+
+-- TR2: Alert if medicine stock falls below 50 (log to a table)
+CREATE TABLE IF NOT EXISTS StockAlert (
+    alert_id      INT AUTO_INCREMENT PRIMARY KEY,
+    medicine_id   INT,
+    medicine_name VARCHAR(100),
+    stock_qty     INT,
+    alert_time    DATETIME DEFAULT CURRENT_TIMESTAMP
+) $$
+
+
+CREATE TRIGGER trg_StockAlert
+AFTER UPDATE ON Medicine
+FOR EACH ROW
+BEGIN
+    IF NEW.stock_qty < 50 THEN
+        INSERT INTO StockAlert (medicine_id, medicine_name, stock_qty)
+        VALUES (NEW.medicine_id, NEW.name, NEW.stock_qty);
+    END IF;
+END $$
+
+
+-- TR3: After Admission insert → increment ward occupied count
+CREATE TRIGGER trg_IncrementOccupied
+AFTER INSERT ON Admission
+FOR EACH ROW
+BEGIN
+    UPDATE Ward SET occupied = occupied + 1 WHERE ward_id = NEW.ward_id;
+END $$
+
+-- TR4: After Admission update (discharge) → decrement occupied count
+CREATE TRIGGER trg_DecrementOccupied
+AFTER UPDATE ON Admission
+FOR EACH ROW
+BEGIN
+    IF OLD.discharge_date IS NULL AND NEW.discharge_date IS NOT NULL THEN
+        UPDATE Ward SET occupied = occupied - 1 WHERE ward_id = NEW.ward_id;
+    END IF;
+END $$
+
+DELIMITER ;
+
+
+-- ============================================================
+--  SECTION 7: PL/SQL – CURSORS
+-- ============================================================
+
+DELIMITER $$
+
+-- Cursor 1: Print all doctors and their department names
+CREATE PROCEDURE sp_DoctorDeptReport()
+BEGIN
+    DECLARE done        INT DEFAULT 0;
+    DECLARE v_doc_name  VARCHAR(100);
+    DECLARE v_dept_name VARCHAR(100);
+    DECLARE v_spec      VARCHAR(100);
+
+    DECLARE cur_doctors CURSOR FOR
+        SELECT D.name, Dept.dept_name, D.specialization
+        FROM Doctor D JOIN Department Dept ON D.dept_id = Dept.dept_id;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+
+    CREATE TEMPORARY TABLE IF NOT EXISTS tmp_DoctorReport (
+        doctor_name    VARCHAR(100),
+        department     VARCHAR(100),
+        specialization VARCHAR(100)
+    );
+
+    OPEN cur_doctors;
+    read_loop: LOOP
+        FETCH cur_doctors INTO v_doc_name, v_dept_name, v_spec;
+        IF done THEN LEAVE read_loop; END IF;
+        INSERT INTO tmp_DoctorReport VALUES (v_doc_name, v_dept_name, v_spec);
+    END LOOP;
+    CLOSE cur_doctors;
+
+    SELECT * FROM tmp_DoctorReport;
+    DROP TEMPORARY TABLE tmp_DoctorReport;
+END $$
+
+
+-- Cursor 2: List all unpaid bills with patient names
+CREATE PROCEDURE sp_UnpaidBillsReport()
+BEGIN
+    DECLARE done       INT DEFAULT 0;
+    DECLARE v_pat_name VARCHAR(100);
+    DECLARE v_total    DECIMAL(10,2);
+    DECLARE v_bill_id  INT;
+
+    DECLARE cur_unpaid CURSOR FOR
+        SELECT P.name, B.bill_id, B.total_amount
+        FROM Bill B JOIN Patient P ON B.patient_id = P.patient_id
+        WHERE B.payment_status IN ('Unpaid','Partial');
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+
+    CREATE TEMPORARY TABLE IF NOT EXISTS tmp_UnpaidBills (
+        patient_name VARCHAR(100),
+        bill_id      INT,
+        amount_due   DECIMAL(10,2)
+    );
+
+    OPEN cur_unpaid;
+    bill_loop: LOOP
+        FETCH cur_unpaid INTO v_pat_name, v_bill_id, v_total;
+        IF done THEN LEAVE bill_loop; END IF;
+        INSERT INTO tmp_UnpaidBills VALUES (v_pat_name, v_bill_id, v_total);
+    END LOOP;
+    CLOSE cur_unpaid;
+
+    SELECT * FROM tmp_UnpaidBills;
+    DROP TEMPORARY TABLE tmp_UnpaidBills;
+END $$
+
+DELIMITER ;
+
+-- Test cursors:
+CALL sp_DoctorDeptReport();
+CALL sp_UnpaidBillsReport();
+
+
+-- ============================================================
+--  SECTION 8: TRANSACTION MANAGEMENT
+-- ============================================================
+
+-- Transaction 1: Admit a patient (admit + update bed count atomically)
+START TRANSACTION;
+
+    INSERT INTO Admission (patient_id, ward_id, bed_no, admit_date, reason)
+    VALUES (1, 1, 15, CURDATE(), 'Fever and respiratory infection');
+    
+     -- If ward has space, update occupied count
+    UPDATE Ward SET occupied = occupied + 1
+    WHERE ward_id = 1 AND (total_beds - occupied) > 0;
+    
+    -- Verify update happened
+    -- If affected rows = 0, rollback (no bed available)
+COMMIT;
+
+-- Transaction 2: Process payment with SAVEPOINT
+START TRANSACTION;
+
+    SAVEPOINT before_payment;
+    
+    UPDATE Bill SET paid_amount = total_amount, payment_status = 'Paid' WHERE bill_id = 1;
+    
+    
+	-- Simulate verification check (if something fails, rollback to savepoint)
+    -- ROLLBACK TO before_payment;  -- uncomment to test rollback
+COMMIT;
+
+-- Transaction 3: Discharge patient (update admission + decrement ward count)
+START TRANSACTION;
+
+    UPDATE Admission SET discharge_date = CURDATE() WHERE admission_id = 1;
+    
+    -- Trigger trg_DecrementOccupied fires automatically here
+COMMIT;
+
+
+-- ============================================================
+--  SECTION 9: ADDITIONAL USEFUL QUERIES
+-- ============================================================
+
+-- Q13: Patients admitted in last 30 days
+SELECT P.name, W.ward_name, A.admit_date, A.reason
+FROM Admission A
+JOIN Patient P ON A.patient_id = P.patient_id
+JOIN Ward    W ON A.ward_id    = W.ward_id
+WHERE A.admit_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY);
+
+-- Q14: Medicine stock status
+SELECT name, category, stock_qty,
+    CASE
+        WHEN stock_qty < 50  THEN 'Critical'
+        WHEN stock_qty < 200 THEN 'Low'
+        ELSE 'Adequate'
+    END AS stock_status
+FROM Medicine ORDER BY stock_qty ASC;
+
+-- Q15: Top 3 most prescribed medicines
+SELECT M.name, COUNT(*) AS times_prescribed
+FROM Prescription PR
+JOIN Medicine M ON PR.medicine_id = M.medicine_id
+GROUP BY M.name
+ORDER BY times_prescribed DESC
+LIMIT 3;
+
+-- Q16: Doctors with no appointments yet (LEFT JOIN pattern)
+SELECT D.name, D.specialization
+FROM Doctor D
+LEFT JOIN Appointment A ON D.doctor_id = A.doctor_id
+WHERE A.appt_id IS NULL;
+
+-- Q17: Revenue collected this month
+SELECT SUM(paid_amount) AS collected_this_month, COUNT(*) AS total_bills
+FROM Bill
+WHERE MONTH(bill_date) = MONTH(CURDATE()) AND YEAR(bill_date) = YEAR(CURDATE());
+
+-- ============================================================
+--  END OF HMS MySQL Script
+-- ============================================================
